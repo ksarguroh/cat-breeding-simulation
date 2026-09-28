@@ -1,4 +1,6 @@
+import qutip as qt
 import numpy as np
+from scipy.integrate import cumulative_trapezoid
 
 
 def momentum_fock_wavefunctions(p_grid, N):
@@ -132,3 +134,108 @@ def homodyne_pdf(psi_out, p_grid):
     pdf /= integral
 
     return pdf, conditional
+
+def sample_homodyne(p_grid, pdf, rng=None):
+    """
+    Sample one homodyne outcome from a numerical probability density.
+
+    Parameters
+    ----------
+    p_grid : array-like
+        Momentum grid.
+    pdf : array-like
+        Normalised probability density evaluated on p_grid.
+    rng : numpy.random.Generator, optional
+        Random-number generator.
+
+    Returns
+    -------
+    p_sample : float
+        One sampled homodyne outcome.
+    """
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # Calculate the cumulative distribution function
+    cdf = cumulative_trapezoid(
+        pdf,
+        p_grid,
+        initial=0
+    )
+
+    # Ensure the CDF ends at 1
+    cdf /= cdf[-1]
+
+    # Draw a uniformly distributed random number
+    u = rng.random()
+
+    # Invert the CDF numerically
+    p_sample = np.interp(
+        u,
+        cdf,
+        p_grid
+    )
+
+    return p_sample
+
+def conditional_state_from_outcome(
+    conditional_states,
+    p_grid,
+    p_sample
+):
+    """
+    Return the normalised conditional state of the unmeasured mode
+    for a sampled homodyne outcome.
+
+    The nearest point on the numerical momentum grid is used.
+
+    Parameters
+    ----------
+    conditional_states : ndarray
+        Unnormalised conditional states for each momentum-grid point.
+
+    p_grid : array-like
+        Momentum measurement grid.
+
+    p_sample : float
+        Sampled homodyne measurement outcome.
+
+    Returns
+    -------
+    state : qutip.Qobj
+        Normalised conditional state of the unmeasured mode.
+
+    p_used : float
+        Momentum-grid value used to construct the state.
+    """
+
+    # Find the momentum-grid point closest to the sampled outcome
+    idx = np.argmin(
+        np.abs(np.asarray(p_grid) - p_sample)
+    )
+
+    # Store the actual grid value used
+    p_used = p_grid[idx]
+
+    # Extract the corresponding unnormalised conditional state
+    state = conditional_states[idx, :].copy()
+
+    # Calculate its norm
+    norm = np.linalg.norm(state)
+
+    if norm <= 0:
+        raise ValueError(
+            "Conditional state has zero norm."
+        )
+
+    # Normalise the state
+    state /= norm
+
+    # Convert the NumPy vector into a QuTiP ket
+    state = qt.Qobj(
+        state,
+        dims=[[len(state)], [1]]
+    )
+
+    return state, p_used
