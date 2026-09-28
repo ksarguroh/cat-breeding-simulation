@@ -12,3 +12,5 @@ def apply_beamsplitter(psi, N, theta=np.pi / 4):
     U = (theta * generator).expm()
 
     return U * psi
+
+# doesnt work when importing into notebook
