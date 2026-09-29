@@ -2,7 +2,7 @@
 
 Numerical simulation of one round of a cat-breeding protocol using QuTiP.
 
-The simulation will include:
+The simulation includes:
 
 - squeezed cat state preparation
 - interference at a 50:50 beamsplitter
